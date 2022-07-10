@@ -59,9 +59,9 @@ class STGCNBlock(nn.Module):
         """
         super(STGCNBlock, self).__init__()
         self.temporal1 = TimeBlock(in_channels=in_channels,
-                                   out_channels=out_channels, kernel_size = 2 * pad + 1)
+                                   out_channels=out_channels, kernel_size = 1)
         self.temporal2 = TimeBlock(in_channels=spatial_channels,
-                                   out_channels=out_channels, kernel_size = 2 * pad + 1)
+                                   out_channels=out_channels, kernel_size = 1)
         self.batch_norm = nn.BatchNorm2d(num_nodes)
 
     def forward(self, X, A_hat):
@@ -72,14 +72,13 @@ class STGCNBlock(nn.Module):
         :return: Output data of shape (batch_size, num_nodes,
         num_timesteps_out, in_channels=out_channels).
         """
-        t = self.temporal1(X)
-        lfs = torch.einsum("ij,jklm->kilm", [A_hat, t.permute(1, 0, 2, 3)])
-        print("lfs", lfs.shape)
+        t1 = self.temporal1(X)
+        n, v, t, c = t1.shape
+        t1 = t1.view(n, v *t, 1, c)
+        lfs = torch.einsum("ij,jklm->kilm", [A_hat, t1.permute(1, 0, 2, 3)])
+        lfs = lfs.view(n, v, t, c)
         t3 = self.temporal2(lfs)
-        print("t3", t3.shape)
         return self.batch_norm(t3) 
-        # return t3
-
 
 class STGCN(nn.Module):
     """
@@ -113,8 +112,10 @@ class STGCN(nn.Module):
         :param A_hat: Normalized adjacency matrix.
         """
         out1 = self.block1(X, A_hat)
-        # out2 = self.block2(out1, A_hat)
-        # out3 = self.last_temporal(out2)
-        # out4 = self.fcn(out3)
-        return out1
+        out2 = self.block2(out1, A_hat)
+        out3 = self.last_temporal(out2)
+        out3 = out3.permute(0, 3, 1, 2)
+        out4 = self.fcn(out3)
+        out4 = out4.permute(0, 3, 2, 1)
+        return out4
 
