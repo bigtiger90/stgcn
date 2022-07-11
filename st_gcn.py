@@ -74,7 +74,7 @@ class STGCNBlock(nn.Module):
         """
         t1 = self.temporal1(X)
         n, v, t, c = t1.shape
-        t1 = t1.view(n, v *t, 1, c)
+        t1 = t1.view(n, v * t, 1, c)
         lfs = torch.einsum("ij,jklm->kilm", [A_hat, t1.permute(1, 0, 2, 3)])
         lfs = lfs.view(n, v, t, c)
         t3 = self.temporal2(lfs)
@@ -88,7 +88,7 @@ class STGCN(nn.Module):
     in_channels).
     """
 
-    def __init__(self, num_nodes, in_channels = 2, out_channels = 3, pad = 0):
+    def __init__(self, L = None, num_nodes = 17, in_channels = 2, out_channels = 3, pad = 0):
         """
         :param num_nodes: Number of nodes in the graph.
         :param in_channels: Number of features at each node in each time step.
@@ -104,15 +104,16 @@ class STGCN(nn.Module):
                                  spatial_channels=64, num_nodes=num_nodes, pad = pad)
         self.last_temporal = TimeBlock(in_channels=64, out_channels=64, kernel_size = 2 * pad + 1)
         self.fcn = nn.Conv2d(in_channels = 64, out_channels = out_channels, kernel_size=1)
+        self.L = L.cuda() 
 
-    def forward(self, A_hat, X):
+    def forward(self, X):
         """
         :param X: Input data of shape (batch_size, num_nodes, num_timesteps,
         in_channels=in_channels).
         :param A_hat: Normalized adjacency matrix.
         """
-        out1 = self.block1(X, A_hat)
-        out2 = self.block2(out1, A_hat)
+        out1 = self.block1(X, self.L)
+        out2 = self.block2(out1, self.L)
         out3 = self.last_temporal(out2)
         out3 = out3.permute(0, 3, 1, 2)
         out4 = self.fcn(out3)

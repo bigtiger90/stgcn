@@ -9,8 +9,9 @@ if __name__ == "__main__":
     # N = 1, C = 2, H/V = 17, W/T =3
     pad = 100
     laplacian = Laplacian(pad)
-    stgcn = STGCN(17, 2, 3, pad)
-    x = torch.ones((1, 17, 2 * pad + 1, 2), dtype = torch.float32)
-    y = stgcn(torch.from_numpy(laplacian.L).to(dtype = torch.float32), x)
-    print(y)
+    stgcn = STGCN(torch.from_numpy(laplacian.L).to(dtype = torch.float32), 17, 2, 3, pad)
+    stgcn.cuda()
+    x = torch.ones((1, 17, 2 * pad + 1, 2), dtype = torch.float32).cuda()
+    y = stgcn(x)
+    print(y.shape)
     
